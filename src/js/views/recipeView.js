@@ -45,14 +45,12 @@ class RecipeView extends View {
           <span class="recipe__info-text">servings</span>
 
           <div class="recipe__info-buttons">
-            <button class="btn--tiny btn--update-servings" data-update-to="${
-              this._data.servings - 1
-            }">
+            <button class="btn--tiny btn--update-servings" data-update="${this._data.servings >= 1 ? this._data.servings - 1 : this._data.servings }">
               <svg>
                 <use href="${icons}#icon-minus-circle"></use>
               </svg>
             </button>
-            <button class="btn--tiny btn--update-servings" data-update-to="${
+            <button class="btn--tiny btn--update-servings" data-update="${
               this._data.servings + 1
             }">
               <svg>
@@ -120,6 +118,16 @@ class RecipeView extends View {
       </div>
     </li>
   `;
+  }
+
+  addHandlerUpdateServing(handler) {
+    this._parentElement.addEventListener('click', (e) => {
+      e.preventDefault();
+      const btn = e.target.closest('.btn--update-servings');
+      if(!btn) return;
+      const updateServingVal = +btn.dataset.update
+      handler(updateServingVal)
+    })
   }
 }
 

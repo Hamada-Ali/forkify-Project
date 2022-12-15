@@ -16,7 +16,7 @@ class Pagination extends View {
     // page 1 and there is no other pages
     if(this._data.page === 1 && numpages > 1) {
         return `
-             <button class="btn--inline pagination__btn--next">
+             <button data-goto="${this._data.page + 1}" class="btn--inline pagination__btn--next">
                  <span>Page ${this._data.page + 1}</span>
                  <svg class="search__icon">
                     <use href="${icons}#icon-arrow-right"></use>
@@ -28,7 +28,7 @@ class Pagination extends View {
     // last page
     if(this._data.page === numpages && numpages > 1) {
         return `
-            <button class="btn--inline pagination__btn--prev">
+            <button data-goto="${this._data.page - 1}" class="btn--inline pagination__btn--prev">
                 <svg class="search__icon">
                     <use href="${icons}#icon-arrow-left"></use>
                 </svg>
@@ -40,13 +40,13 @@ class Pagination extends View {
     // other page
     if(this._data.page < numpages) {
         return `
-        <button class="btn--inline pagination__btn--prev">
+        <button data-goto="${this._data.page - 1}" class="btn--inline pagination__btn--prev">
             <svg class="search__icon">
                 <use href="${icons}#icon-arrow-left"></use>
             </svg>
             <span>Page ${this._data.page - 1}</span>
         </button>
-        <button class="btn--inline pagination__btn--next">
+        <button data-goto="${this._data.page + 1}" class="btn--inline pagination__btn--next">
             <span>Page ${this._data.page + 1}</span>
             <svg class="search__icon">
                 <use href="${icons}#icon-arrow-right"></use>
@@ -58,6 +58,16 @@ class Pagination extends View {
     // page 1 and there is no other pages
     return ''
 
+    }
+
+    addHandlerBtn(handler) {
+        this._parentElement.addEventListener('click', e => {
+            e.preventDefault();
+            const btn = e.target.closest('.btn--inline')
+            if(!btn) return;
+            // console.log()
+            handler(+btn.dataset.goto)
+        })
     }
 }
 

@@ -550,6 +550,8 @@ var _regeneratorRuntime = require("regenerator-runtime");
 const controlRecipes = async function() {
     try {
         const id = window.location.hash.slice(1);
+        // 0 update reults to mark selected
+        (0, _resultsViewJsDefault.default).update(_modelJs.getSearchResultsPage());
         if (!id) return;
         (0, _recipeViewJsDefault.default).renderSpinner();
         // 2) Loading recipe
@@ -580,8 +582,9 @@ const controlSearchResults = async function() {
 const controlPagination = function(goToPage) {
     // 1) Render NEW results
     (0, _resultsViewJsDefault.default).render(_modelJs.getSearchResultsPage(goToPage));
+    // init pagination buttons
+    (0, _paginationViewJsDefault.default).render(_modelJs.state.search);
 };
-const controlAddBookmark = function() {};
 const controlAddRecipe = async function(newRecipe) {
     try {
         // Show loading spinner
@@ -595,10 +598,17 @@ const controlAddRecipe = async function(newRecipe) {
         (0, _addRecipeViewJsDefault.default).renderError(err.message);
     }
 };
+const controlServing = (dataServing)=>{
+    _modelJs.updateServing(dataServing);
+    // Render recipe
+    (0, _recipeViewJsDefault.default).update(_modelJs.state.recipe);
+};
 const init = function() {
     (0, _recipeViewJsDefault.default).addHandlerRender(controlRecipes);
     (0, _searchViewJsDefault.default).addHandlerSearch(controlSearchResults);
     (0, _addRecipeViewJsDefault.default).addHandlerUpload(controlAddRecipe);
+    (0, _paginationViewJsDefault.default).addHandlerBtn(controlPagination);
+    (0, _recipeViewJsDefault.default).addHandlerUpdateServing(controlServing);
 };
 init();
 
@@ -607,8 +617,10 @@ var parcelHelpers = require("@parcel/transformer-js/src/esmodule-helpers.js");
 parcelHelpers.defineInteropFlag(exports);
 parcelHelpers.export(exports, "state", ()=>state);
 parcelHelpers.export(exports, "loadRecipe", ()=>loadRecipe);
+parcelHelpers.export(exports, "updateServing", ()=>updateServing);
 parcelHelpers.export(exports, "loadSearchResults", ()=>loadSearchResults);
 parcelHelpers.export(exports, "getSearchResultsPage", ()=>getSearchResultsPage);
+var _fs = require("fs");
 var _regeneratorRuntime = require("regenerator-runtime");
 var _configJs = require("./config.js");
 var _helpersJs = require("./helpers.js");
@@ -647,6 +659,13 @@ const loadRecipe = async function(id) {
         console.error(`${err} 💥💥💥💥`);
         throw err;
     }
+};
+const updateServing = (newServing)=>{
+    console.log(state.recipe);
+    state.recipe.ingredients.forEach((ing)=>{
+        ing.quantity = ing.quantity * newServing / state.recipe.servings;
+    });
+    state.recipe.servings = newServing;
 };
 const loadSearchResults = async function(query) {
     try {
@@ -703,7 +722,7 @@ const getSearchResultsPage = function(page = state.search.page) {
  //   }
  // };
 
-},{"regenerator-runtime":"3OqK8","./config.js":"k5Hzs","@parcel/transformer-js/src/esmodule-helpers.js":"fD7H8","./helpers.js":"hGI1E"}],"3OqK8":[function(require,module,exports) {
+},{"regenerator-runtime":"3OqK8","./config.js":"k5Hzs","@parcel/transformer-js/src/esmodule-helpers.js":"fD7H8","./helpers.js":"hGI1E","fs":"bXKEI"}],"3OqK8":[function(require,module,exports) {
 /**
  * Copyright (c) 2014-present, Facebook, Inc.
  *
@@ -1354,7 +1373,10 @@ const getJSON = async function(url) {
     }
 };
 
-},{"regenerator-runtime":"3OqK8","./config.js":"k5Hzs","@parcel/transformer-js/src/esmodule-helpers.js":"fD7H8"}],"l60JC":[function(require,module,exports) {
+},{"regenerator-runtime":"3OqK8","./config.js":"k5Hzs","@parcel/transformer-js/src/esmodule-helpers.js":"fD7H8"}],"bXKEI":[function(require,module,exports) {
+"use strict";
+
+},{}],"l60JC":[function(require,module,exports) {
 var parcelHelpers = require("@parcel/transformer-js/src/esmodule-helpers.js");
 parcelHelpers.defineInteropFlag(exports);
 var _viewJs = require("./View.js");
@@ -1398,12 +1420,12 @@ class RecipeView extends (0, _viewJsDefault.default) {
           <span class="recipe__info-text">servings</span>
 
           <div class="recipe__info-buttons">
-            <button class="btn--tiny btn--update-servings" data-update-to="${this._data.servings - 1}">
+            <button class="btn--tiny btn--update-servings" data-update="${this._data.servings >= 1 ? this._data.servings - 1 : this._data.servings}">
               <svg>
                 <use href="${0, _iconsSvgDefault.default}#icon-minus-circle"></use>
               </svg>
             </button>
-            <button class="btn--tiny btn--update-servings" data-update-to="${this._data.servings + 1}">
+            <button class="btn--tiny btn--update-servings" data-update="${this._data.servings + 1}">
               <svg>
                 <use href="${0, _iconsSvgDefault.default}#icon-plus-circle"></use>
               </svg>
@@ -1463,6 +1485,15 @@ class RecipeView extends (0, _viewJsDefault.default) {
     </li>
   `;
     }
+    addHandlerUpdateServing(handler) {
+        this._parentElement.addEventListener("click", (e)=>{
+            e.preventDefault();
+            const btn = e.target.closest(".btn--update-servings");
+            if (!btn) return;
+            const updateServingVal = +btn.dataset.update;
+            handler(updateServingVal);
+        });
+    }
 }
 exports.default = new RecipeView();
 
@@ -1483,6 +1514,22 @@ class View {
     }
     _clear() {
         this._parentElement.innerHTML = "";
+    }
+    update(data) {
+        this._data = data;
+        const newMarkup = this._generateMarkup();
+        const newDom = document.createRange().createContextualFragment(newMarkup);
+        const newElements = Array.from(newDom.querySelectorAll("*"));
+        const curElements = Array.from(this._parentElement.querySelectorAll("*"));
+        newElements.forEach((newEl, i)=>{
+            const curEl = curElements[i];
+            console.log(curEl, newEl.isEqualNode(curEl));
+            if (!newEl.isEqualNode(curEl) && newEl.firstChild.nodeValue.trim() !== "") curEl.textContent = newEl.textContent;
+            // Update Changes Attributes (dataset)
+            if (!newEl.isEqualNode(curEl)) Array.from(newEl.attributes).forEach((attr)=>{
+                curEl.setAttribute(attr.name, attr.value);
+            });
+        });
     }
     renderSpinner() {
         const markup = `
@@ -1854,6 +1901,27 @@ class ResultsView extends (0, _viewJsDefault.default) {
     _generateMarkup() {
         return this._data.map((result)=>(0, _previewViewJsDefault.default).render(result, false)).join("");
     }
+    _generateMarkupPreview(result) {
+        const id = window.location.hash.slice(1);
+        return `
+    <li class="preview">
+      <a class="preview__link ${result.id === id ? "preview__link--active" : " "}" href="#${result.id}">
+        <figure class="preview__fig">
+          <img src="${result.image}" alt="${result.title}" />
+        </figure>
+        <div class="preview__data">
+          <h4 class="preview__title">${result.title}</h4>
+          <p class="preview__publisher">${result.publisher}</p>
+          <div class="preview__user-generated">
+            <svg>
+              <use href="src/img/icons.svg#icon-user"></use>
+            </svg>
+          </div>
+        </div>
+      </a>
+    </li>
+    `;
+    }
 }
 exports.default = new ResultsView();
 
@@ -1951,7 +2019,7 @@ class Pagination extends (0, _viewJsDefault.default) {
         console.log(numpages);
         // page 1 and there is no other pages
         if (this._data.page === 1 && numpages > 1) return `
-             <button class="btn--inline pagination__btn--next">
+             <button data-goto="${this._data.page + 1}" class="btn--inline pagination__btn--next">
                  <span>Page ${this._data.page + 1}</span>
                  <svg class="search__icon">
                     <use href="${0, _iconsSvgDefault.default}#icon-arrow-right"></use>
@@ -1960,7 +2028,7 @@ class Pagination extends (0, _viewJsDefault.default) {
         `;
         // last page
         if (this._data.page === numpages && numpages > 1) return `
-            <button class="btn--inline pagination__btn--prev">
+            <button data-goto="${this._data.page - 1}" class="btn--inline pagination__btn--prev">
                 <svg class="search__icon">
                     <use href="${0, _iconsSvgDefault.default}#icon-arrow-left"></use>
                 </svg>
@@ -1969,13 +2037,13 @@ class Pagination extends (0, _viewJsDefault.default) {
         `;
         // other page
         if (this._data.page < numpages) return `
-        <button class="btn--inline pagination__btn--prev">
+        <button data-goto="${this._data.page - 1}" class="btn--inline pagination__btn--prev">
             <svg class="search__icon">
                 <use href="${0, _iconsSvgDefault.default}#icon-arrow-left"></use>
             </svg>
             <span>Page ${this._data.page - 1}</span>
         </button>
-        <button class="btn--inline pagination__btn--next">
+        <button data-goto="${this._data.page + 1}" class="btn--inline pagination__btn--next">
             <span>Page ${this._data.page + 1}</span>
             <svg class="search__icon">
                 <use href="${0, _iconsSvgDefault.default}#icon-arrow-right"></use>
@@ -1984,6 +2052,15 @@ class Pagination extends (0, _viewJsDefault.default) {
         `;
         // page 1 and there is no other pages
         return "";
+    }
+    addHandlerBtn(handler) {
+        this._parentElement.addEventListener("click", (e)=>{
+            e.preventDefault();
+            const btn = e.target.closest(".btn--inline");
+            if (!btn) return;
+            // console.log()
+            handler(+btn.dataset.goto);
+        });
     }
 }
 exports.default = new Pagination();
