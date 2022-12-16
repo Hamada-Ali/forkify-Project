@@ -1,8 +1,8 @@
 import { stat } from 'fs';
 import { async } from 'regenerator-runtime';
 import { API_URL, RES_PER_PAGE, KEY } from './config.js';
- import { getJSON} from './helpers.js';
-//import { AJAX } from './helpers.js';
+ //import { getJSON, sendJSON } from './helpers.js';
+import { AJAX } from './helpers.js';
 
 export const state = {
   recipe: {},
@@ -26,19 +26,21 @@ const createRecipeObject = function (data) {
     servings: recipe.servings,
     cookingTime: recipe.cooking_time,
     ingredients: recipe.ingredients,
+    ...(recipe.key && {key: recipe.key})
   };
 };
 
 export const loadRecipe = async function (id) {
   try {
-    const data = await getJSON(`${API_URL}${id}?key=b5d8f86c-a655-48aa-be59-e27e86ba39ef`);
+    const data = await AJAX(`${API_URL}${id}?key=${KEY}`);
     state.recipe = createRecipeObject(data);
 
     if (state.bookmarks.some(bookmark => bookmark.id === id))
       state.recipe.bookmarked = true;
     else state.recipe.bookmarked = false;
+    console.log(state.bookmarks)
 
-    console.log(state.recipe);
+    ///console.log(state.recipe);
   } catch (err) {
     // Temp error handling
     console.error(`${err} 💥💥💥💥`);
@@ -60,7 +62,7 @@ export const loadSearchResults = async function (query) {
   try {
     state.search.query = query;
 
-    const data = await getJSON(`${API_URL}?search=${query}&key=b5d8f86c-a655-48aa-be59-e27e86ba39ef`);
+    const data = await AJAX(`${API_URL}?search=${query}&key=${KEY}`);
     console.log(data);
 
 
@@ -88,37 +90,62 @@ export const getSearchResultsPage = function (page = state.search.page) {
   return state.search.results.slice(start, end);
 };
 
-// export const uploadRecipe = async function (newRecipe) {
-//   try {
-//     const ingredients = Object.entries(newRecipe)
-//       .filter(entry => entry[0].startsWith('ingredient') && entry[1] !== '')
-//       .map(ing => {
-//         const ingArr = ing[1].split(',').map(el => el.trim());
-//         // const ingArr = ing[1].replaceAll(' ', '').split(',');
-//         if (ingArr.length !== 3)
-//           throw new Error(
-//             'Wrong ingredient fromat! Please use the correct format :)'
-//           );
 
-//         const [quantity, unit, description] = ingArr;
+const saveBookmarks = () => {
+  localStorage.setItem('bookmark', JSON.stringify(state.bookmarks))
+}
 
-//         return { quantity: quantity ? +quantity : null, unit, description };
-//       });
 
-//     const recipe = {
-//       title: newRecipe.title,
-//       source_url: newRecipe.sourceUrl,
-//       image_url: newRecipe.image,
-//       publisher: newRecipe.publisher,
-//       cooking_time: +newRecipe.cookingTime,
-//       servings: +newRecipe.servings,
-//       ingredients,
-//     };
+export const addBookmark = (recipe) => {
+  // push the recipe to the bookmarks array
+  state.bookmarks.push(recipe)
 
-//     const data = await AJAX(`${API_URL}?key=${KEY}`, recipe);
-//     state.recipe = createRecipeObject(data);
-//     addBookmark(state.recipe);
-//   } catch (err) {
-//     throw err;
-//   }
-// };
+  // check
+  if(recipe.id === state.recipe.id) state.recipe.bookmarked = true;
+
+  saveBookmarks()
+}
+
+export const uploadRecipe = async function (newRecipe) {
+  try {
+    const ingredients = Object.entries(newRecipe)
+      .filter(entry => entry[0].startsWith('ingredient') && entry[1] !== '')
+      .map(ing => {
+        const ingArr = ing[1].split(',').map(el => el.trim());
+        // const ingArr = ing[1].replaceAll(' ', '').split(',');
+        if (ingArr.length !== 3)
+          throw new Error(
+            'Wrong ingredient fromat! Please use the correct format :)'
+          );
+
+        const [quantity, unit, description] = ingArr;
+
+        return { quantity: quantity ? +quantity : null, unit, description };
+      });
+
+    const recipe = {
+      title: newRecipe.title,
+      source_url: newRecipe.sourceUrl,
+      image_url: newRecipe.image,
+      publisher: newRecipe.publisher,
+      cooking_time: +newRecipe.cookingTime,
+      servings: +newRecipe.servings,
+      ingredients,
+    };
+
+    const data = await AJAX(`${API_URL}?key=${KEY}`, recipe);
+    state.recipe = createRecipeObject(data);
+    console.log(data)
+    addBookmark(state.recipe);
+  } catch (err) {
+    throw err;
+  }
+};
+
+const init = () => {
+  const storage  = localStorage.getItem('bookmark')
+
+  if(storage) state.bookmarks = JSON.parse(storage)
+}
+
+init()

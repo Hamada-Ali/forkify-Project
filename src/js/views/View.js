@@ -3,6 +3,16 @@ import icons from 'url:../../img/icons.svg'; // Parcel 2
 export default class View {
   _data;
 
+  /**
+   * Render the recieved object the dom
+   * @param {Object | Object[]} data the data that should be rendered 
+   * @param {boolean} {render= true}  
+   * @returns {undefined} (void function)
+   * @this {Object} View instance (from the parent class)
+   * @author Hamada Ali
+   * @isUnderstanble 60% => yes
+   */
+
   render(data, render = true) {
     if (!data || (Array.isArray(data) && data.length === 0))
       return this.renderError();
